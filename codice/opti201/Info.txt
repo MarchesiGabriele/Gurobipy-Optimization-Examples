@@ -1,0 +1,1 @@
+multi objective (weigthed - hierarchical), multiple scenarios, multiple alternative solutions (solution pool, PoolSearchMode)
