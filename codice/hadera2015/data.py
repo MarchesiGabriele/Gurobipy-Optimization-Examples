@@ -19,6 +19,7 @@ sub_heat_groups = {'HG1': ['P1', 'P2', 'P3'],
 }
 last_sub_heat_group = {'HG1': 'P3', 'HG2': 'P7', 'HG3': 'P12', 'HG4': 'P16', 'HG5': 'P20'}
 first_sub_heat_group = {'HG1': 'P1', 'HG2': 'P4', 'HG3': 'P8', 'HG4': 'P13', 'HG5': 'P17'}
+time_interval = [f'{i}' for i in range(1, 25)]
 
 
 # PARAMETERS
@@ -32,4 +33,4 @@ tmin = {'EAF1':{'AOD1':10, 'AOD2':25, 'LF1':0, 'LF2':0, 'CC1':0, 'CC2':0},
         }
 tmax = {p:{'EAF':60, 'AOD':90, 'LF':60} for p in heat}
 tsetup = {'EAF1': 9, 'EAF2': 9, 'AOD1': 5, 'AOD2': 5, 'LF1': 15, 'LF2': 5, 'CC1': 50, 'CC2': 70}
-tau = {p: {'EAF1':85, 'EAF2':85, 'AOD1':2, 'AOD2':2, 'LF1':2, 'LF2':2, 'CC1':7, 'CC2':7} for p in heat}
+tau = {t:(int(t)-1)*60 for t in time_interval}
