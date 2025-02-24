@@ -20,6 +20,20 @@ sub_heat_groups = {'HG1': ['P1', 'P2', 'P3'],
 last_sub_heat_group = {'HG1': 'P3', 'HG2': 'P7', 'HG3': 'P12', 'HG4': 'P16', 'HG5': 'P20'}
 first_sub_heat_group = {'HG1': 'P1', 'HG2': 'P4', 'HG3': 'P8', 'HG4': 'P13', 'HG5': 'P17'}
 time_interval = [f'{i}' for i in range(1, 25)]
+node = [f'{i}' for i in range(1, 8)]
+pur = ['1', '2']
+dem = ['3'] 
+gen = ['4']
+bal = ['5'] 
+sale = ['6', '7']
+arc = {'1':['5'], 
+       '2':['5'], 
+       '3':['5'], 
+       '4':['5'], 
+       '5':['6','7'], 
+       '6':[], 
+       '7':[], 
+       }
 
 
 # PARAMETERS
@@ -34,3 +48,19 @@ tmin = {'EAF1':{'AOD1':10, 'AOD2':25, 'LF1':0, 'LF2':0, 'CC1':0, 'CC2':0},
 tmax = {p:{'EAF':60, 'AOD':90, 'LF':60} for p in heat}
 tsetup = {'EAF1': 9, 'EAF2': 9, 'AOD1': 5, 'AOD2': 5, 'LF1': 15, 'LF2': 5, 'CC1': 50, 'CC2': 70}
 tau = {t:(int(t)-1)*60 for t in time_interval}
+flowmin = {f's': {  '1': {'5':30},
+                    '2': {'5':0},
+                    '3': {'5':0},
+                    '4': {'5':0},
+                    '5': {'6':0, 
+                          '7':0
+                          },
+                  } for s in time_interval}
+flowmax = {f's': {  '1': {'5':30},
+                    '2': {'5':100},
+                    '3': {'5':100},
+                    '4': {'5':40},
+                    '5': {'6':999,  # TODO: MODIFICARE
+                          '7':999   # TODO: MODIFICARE
+                          },
+                  } for s in time_interval}
