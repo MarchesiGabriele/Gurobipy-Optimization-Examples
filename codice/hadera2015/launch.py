@@ -5,6 +5,7 @@ from functions import draw_gantt_chart, plot_energy_prices, plot_flows
 import sys
 
 hedera_model = model.get_hedera_full_model_simplified()
+# hedera_model = model.get_hedera_schedulingmodel()
 hedera_model.optimize()
 
 # do IIS if the model is infeasible
