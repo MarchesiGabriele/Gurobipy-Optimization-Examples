@@ -3,19 +3,11 @@ from gurobipy import GRB
 import data
 
 
-# Energy market (prendo energia necessaria per soddisfare la domanda)
-# Reserve market (gestisco eventuali opportunità aggiuntive)
 
-
+# 4 furnaces, 2 power lines (2 furnaces each), 1 castin line
+# VALORI CUSTOM: Pmax, Plmax, vtl, PstageMin, PstageMax
 def get_optimal_power_profiles_simplified(casting_line: str) -> gp.Model:
     mdl = gp.Model("Energy Market Simple")
-
-    # 4 furnaces, 2 power lines (2 furnaces each), 1 castin line
-
-
-    # VALORI CUSTOM: Pmax, Plmax, vtl, PstageMin, PstageMax
-
-
 
     # SETS
     F = data.furnaces
@@ -31,18 +23,18 @@ def get_optimal_power_profiles_simplified(casting_line: str) -> gp.Model:
     K = data.time_grid
 
     # PARAMETERS
-    rcast = 3 # [m3/s]
+    rcast = 4 # [m3/s]
     E_hat = data.E_hat # [kWh]
     Pmax = 2e5 # [kW] 
-    Plmax = 16e3*4 # [kW]
+    Plmax = 16e3*3 # [kW]
     PstageMin = data.pminstage
     PstageMax = data.pmaxstage
     deltat = 5*60 # [s]
     delta_hat = data.stage_time
-    buffer_level_start = 14000 # [m3]
+    buffer_level_start = 30000# [m3]
     vtl = 14000 # [m3] 
     lambdada = data.prezzi_orari
-
+    HORIZON = 24*60*60
 
     # VARIABLES
     p = mdl.addVars(K,F,M,J, vtype=GRB.CONTINUOUS, name='power') # [kW]
@@ -52,10 +44,6 @@ def get_optimal_power_profiles_simplified(casting_line: str) -> gp.Model:
     costo_cl = mdl.addVars(C, vtype=GRB.CONTINUOUS, name='costo_casting_line')
     vtap = mdl.addVars(K,F, vtype=GRB.CONTINUOUS, name='tapping_volume')
     buffer_level = mdl.addVars(K, vtype=GRB.CONTINUOUS, lb=-GRB.INFINITY, name='buffer_level')
-
-
-    HORIZON = 24*60*60
-
 
     # CONSTRAINTS
     # kw*deltat = kWh
