@@ -12,6 +12,11 @@ def get_optimal_power_profiles_simplified(casting_line: str) -> gp.Model:
 
     # 4 furnaces, 2 power lines (2 furnaces each), 1 castin line
 
+
+    # VALORI CUSTOM: Pmax, Plmax, vtl, PstageMin, PstageMax
+
+
+
     # SETS
     F = data.furnaces
     M = data.jobs
@@ -26,51 +31,49 @@ def get_optimal_power_profiles_simplified(casting_line: str) -> gp.Model:
     K = data.time_grid
 
     # PARAMETERS
-    rcast = 210 # [m3/s]
-    vpour = 1400 # [m3] 
-    #vtap = 1400/1  # only one tap # TODO: GIOCARE CON QUESTO VALORE
-    # vcast = 1400 #?? # TODO: GIOCARE CON QUESTO VALORE
-    E_hat = data.E_hat # energy for each stage
-    Pmax = 1000000 # [MW] # TODO SECONDO ME DEVE ESSERE DI PIU DATO CHE E' LA POTENZA TOTALE E NON SOLO QUELLA DI UNA MACCHINA
-    Plmax = 16 # [MW]
+    rcast = 3 # [m3/s]
+    E_hat = data.E_hat # [kWh]
+    Pmax = 2e5 # [kW] 
+    Plmax = 16e3*4 # [kW]
     PstageMin = data.pminstage
     PstageMax = data.pmaxstage
-    deltat = 5 # [min]
+    deltat = 5*60 # [s]
     delta_hat = data.stage_time
-    buffer_level_start = 0 # TODO GIOCARE CON QUESTO VALORE
-    vtl = 1400 # TODO: GIOCARE CON QUESTO VALORE
+    buffer_level_start = 14000 # [m3]
+    vtl = 14000 # [m3] 
     lambdada = data.prezzi_orari
 
 
     # VARIABLES
-    p = mdl.addVars(K,F,M,J, vtype=GRB.CONTINUOUS, name='power')
-    t = mdl.addVars(F,M,J, vtype=GRB.CONTINUOUS, name='stage_starting_times')
+    p = mdl.addVars(K,F,M,J, vtype=GRB.CONTINUOUS, name='power') # [kW]
+    t = mdl.addVars(F,M,J, vtype=GRB.CONTINUOUS, name='stage_starting_times') # [s]
     x = mdl.addVars(K,F,M,J, vtype=GRB.BINARY, name='stage_activation')
     y = mdl.addVars(K,F,M,J, vtype=GRB.BINARY, name='supplementary_features')
     costo_cl = mdl.addVars(C, vtype=GRB.CONTINUOUS, name='costo_casting_line')
-    vtap = mdl.addVars(K,F, vtype=GRB.CONTINUOUS, name='casting_volume')
-    buffer_level = mdl.addVars(K, vtype=GRB.CONTINUOUS, name='buffer_level')
+    vtap = mdl.addVars(K,F, vtype=GRB.CONTINUOUS, name='tapping_volume')
+    buffer_level = mdl.addVars(K, vtype=GRB.CONTINUOUS, lb=-GRB.INFINITY, name='buffer_level')
 
 
     HORIZON = 24*60*60
 
 
     # CONSTRAINTS
-    mdl.addConstrs((gp.quicksum(p[k,f,m,j]*deltat*60 for k in K) == E_hat[f][m][j] for f in F for m in MF[f] for j in JE), name='(4)')
+    # kw*deltat = kWh
+    mdl.addConstrs((gp.quicksum(p[k,f,m,j]*deltat/3600 for k in K) == E_hat[f][m][j] for f in F for m in MF[f] for j in JE), name='(4)')
     mdl.addConstrs((t[f,m,JT[i+1]] - t[f,m,JT[i]] >= delta_hat[f][m][JT[i]] for f in F for m in MF[f] for i in range(len(JT)-1)), name='(5)')
     # tempo tra ultimo stage di un job e primo stage del job successivo
-    mdl.addConstrs((t[f,MF[f][i+1],'LOADING'] - t[f,MF[f][i],J[len(J)-1]] >= delta_hat[f][MF[f][i+1]]['LOADING'] for f in F for i in range(len(MF[f])-1)), name='(6)')
-    mdl.addConstrs(((1-x[k,f,m,j])*(1+int(k))<= t[f,m,j]/deltat for f in F for m in MF[f] for k in K for j in J), name='(7.1)')
-    mdl.addConstrs((t[f,m,j]/deltat <= x[k,f,m,j]*HORIZON + (1-x[k,f,m,j])*HORIZON for f in F for m in MF[f] for k in K for j in J), name='(7.2)') 
+    mdl.addConstrs((t[f,MF[f][i+1],'LOADING'] - t[f,MF[f][i],'TAPPING'] >= delta_hat[f][MF[f][i+1]]['LOADING'] for f in F for i in range(len(MF[f])-1)), name='(6)')
+    mdl.addConstrs(((1-x[k,f,m,j])*(1+k)<= t[f,m,j]/deltat for f in F for m in MF[f] for k in K for j in J), name='(7.1)')
+    mdl.addConstrs((t[f,m,j]/deltat <= x[k,f,m,j]*k + (1-x[k,f,m,j])*HORIZON for f in F for m in MF[f] for k in K for j in J), name='(7.2)') 
     mdl.addConstrs((PstageMin[f][m][J[i]]*(x[k,f,m,J[i]] - x[k,f,m,J[i+1]]) <= p[k,f,m,J[i]] for f in F for m in MF[f] for k in K for i in range(len(J)-1)), name='(8.1)')
     mdl.addConstrs((p[k,f,m,J[i]] <= PstageMax[f][m][J[i]]*(x[k,f,m,J[i]] - x[k,f,m,J[i+1]]) for f in F for m in MF[f] for k in K for i in range(len(J)-1)), name='(8.2)')
     mdl.addConstrs((gp.quicksum(gp.quicksum(gp.quicksum(p[k,f,m,j] for j in J) for m in MF[f]) for f in FL[l]) <= Plmax for l in L for k in K), name='(9)')
     mdl.addConstrs((gp.quicksum(gp.quicksum(gp.quicksum(p[k,f,m,j] for j in J) for m in MF[f]) for f in F) <= Pmax for k in K), name='(10)')
     mdl.addConstrs((PstageMin[f][m][j]*y[k,f,m,j] <= p[k,f,m,j] for f in F for m in MF[f] for k in K for j in J), name='(11.1)') 
     mdl.addConstrs((p[k,f,m,j] <= PstageMax[f][m][j]*y[k,f,m,j] for f in F for m in MF[f] for k in K for j in J), name='(11.2)') 
-    mdl.addConstrs((buffer_level[k] == buffer_level_start + gp.quicksum(vtap[k,f] for f in FC[c]) - rcast*deltat for c in C for k in K), name='(14)')
+    mdl.addConstrs((buffer_level[k] == buffer_level_start + gp.quicksum(vtap[k,f] for f in FC[c]) - rcast*deltat*k for c in C for k in K), name='(14)')
     mdl.addConstrs((vtap[k,f] == vtl * gp.quicksum(x[k,f,m,'TAPPING'] for m in MF[f]) for f in F for k in K), name='(16)') 
-    mdl.addConstr((costo_cl[casting_line] == gp.quicksum(gp.quicksum(gp.quicksum(gp.quicksum(p[k,f,m,j]*lambdada[k]*deltat for k in K) for j in J) for m in MF[f]) for f in FC[casting_line] for c in C)), name='(20)')
+    mdl.addConstr((costo_cl[casting_line] == gp.quicksum(gp.quicksum(gp.quicksum(gp.quicksum(p[k,f,m,j]*(lambdada[k]/1000)*deltat/3600 for k in K) for j in J) for m in MF[f]) for f in FC[casting_line] for c in C)), name='(20)')
 
 
     # OBJECTIVE
@@ -88,7 +91,7 @@ def get_optimal_power_profiles(casting_line: str) -> gp.Model:
     F = data.melting_furnaces
     L = data.power_lines
     K = data.time_grid
-    M = data.melt_jobs   # TODO: CHECK
+    M = data.melt_jobs
     J = data.stages
     JE = data.energy_based_stages
     JT = data.time_based_stages
